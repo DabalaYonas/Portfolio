@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as THREE from 'three'; // Requires: npm install three
+import type { FormEvent, ChangeEvent } from 'react';
+import * as THREE from 'three'; 
 import { 
   Github, 
   Linkedin, 
@@ -7,7 +8,6 @@ import {
   Phone, 
   MapPin, 
   ExternalLink, 
-  Code, 
   Database, 
   Layout, 
   Smartphone, 
@@ -23,180 +23,52 @@ import {
   GraduationCap,
   Globe,
   Copy,
-  Check
+  Check,
 } from 'lucide-react';
 
-// --- Custom Hooks ---
+interface PersonalInfo {
+  name: string;
+  title: string;
+  location: string;
+  email: string;
+  phone: string;
+  website: string;
+  about: string;
+}
 
-const useOnScreen = (options) => {
-  const ref = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
+interface SkillCategory {
+  category: string;
+  icon: React.ElementType;
+  items: string[];
+}
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIsVisible(true);
-        observer.disconnect();
-      }
-    }, options);
-    if (ref.current) observer.observe(ref.current);
-    return () => { if (ref.current) observer.unobserve(ref.current); };
-  }, [ref, options]);
+interface ExperienceItem {
+  company: string;
+  role: string;
+  period: string;
+  description: string;
+}
 
-  return [ref, isVisible];
-};
+interface ProjectItem {
+  title: string;
+  type: string;
+  description: string;
+  tech: string[];
+  link?: string;
+  icon: React.ElementType;
+  color: string;
+}
 
-// --- 3D Background Component ---
-const ThreeBackground = () => {
-  const mountRef = useRef(null);
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    
-    // Scene Setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    if (mount) mount.appendChild(renderer.domElement);
-
-    // Objects
-    
-    // 1. Main Wireframe Sphere (Icosahedron)
-    const geometry = new THREE.IcosahedronGeometry(2.5, 1);
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0x2dd4bf, // Teal-400
-      wireframe: true,
-      transparent: true,
-      opacity: 0.15
-    });
-    const sphere = new THREE.Mesh(geometry, material);
-    scene.add(sphere);
-
-    // 2. Inner Core
-    const coreGeometry = new THREE.OctahedronGeometry(1, 0);
-    const coreMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x60a5fa, // Blue-400
-      wireframe: true,
-      transparent: true,
-      opacity: 0.3
-    });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
-    scene.add(core);
-
-    // 3. Particles
-    const particlesGeometry = new THREE.BufferGeometry();
-    const particleCount = 700;
-    const posArray = new Float32Array(particleCount * 3);
-
-    for(let i = 0; i < particleCount * 3; i++) {
-      posArray[i] = (Math.random() - 0.5) * 15; // Spread particles
-    }
-
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particlesMaterial = new THREE.PointsMaterial({
-      size: 0.02,
-      color: 0x94a3b8,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particlesMesh);
-
-    // Positioning
-    camera.position.z = 5;
-    sphere.position.x = 1.5; // Offset to the right
-    core.position.x = 1.5;
-
-    // Mouse Interaction
-    let mouseX = 0;
-    let mouseY = 0;
-    let targetX = 0;
-    let targetY = 0;
-
-    const handleMouseMove = (event) => {
-      mouseX = (event.clientX / window.innerWidth) - 0.5;
-      mouseY = (event.clientY / window.innerHeight) - 0.5;
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    
-    const handleResize = () => {
-        if (!mount) return;
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        // Mobile adjustments
-        if(window.innerWidth < 768) {
-            sphere.position.x = 0;
-            core.position.x = 0;
-            sphere.scale.set(0.7, 0.7, 0.7);
-        } else {
-            sphere.position.x = 1.5;
-            core.position.x = 1.5;
-            sphere.scale.set(1, 1, 1);
-        }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial check
-
-    // Animation Loop
-    const clock = new THREE.Clock();
-    let animationId;
-
-    const animate = () => {
-      const elapsedTime = clock.getElapsedTime();
-
-      targetX = mouseX * 0.5;
-      targetY = mouseY * 0.5;
-
-      // Sphere Rotation
-      sphere.rotation.y += 0.002;
-      sphere.rotation.x += 0.001;
-      sphere.rotation.y += 0.5 * (targetX - sphere.rotation.y) * 0.05;
-      sphere.rotation.x += 0.5 * (targetY - sphere.rotation.x) * 0.05;
-
-      // Core Rotation (Counter-rotate)
-      core.rotation.y -= 0.005;
-      core.rotation.x -= 0.005;
-
-      // Gentle Floating
-      sphere.position.y = Math.sin(elapsedTime * 0.5) * 0.1;
-      core.position.y = Math.sin(elapsedTime * 0.5) * 0.1;
-
-      // Particles Rotation
-      particlesMesh.rotation.y = -elapsedTime * 0.05;
-      particlesMesh.rotation.x = mouseY * 0.1;
-
-      renderer.render(scene, camera);
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationId);
-      if (mount && mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
-      }
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-    };
-  }, []);
-
-  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />;
-};
+interface FormData {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
 
 // --- Data ---
 
-const personalInfo = {
+const personalInfo: PersonalInfo = {
   name: "Dabala Yonas",
   title: "Software Engineer",
   location: "Addis Ababa, Ethiopia",
@@ -206,7 +78,7 @@ const personalInfo = {
   about: "A passionate Software Engineer with a foundation in coding starting at age 14. I specialize in building scalable full-stack applications and intuitive mobile experiences."
 };
 
-const skills = [
+const skills: SkillCategory[] = [
   { category: "Frontend", icon: Layout, items: ["React.js", "Next.js", "Tailwind CSS", "HTML5/CSS3", "Figma"] },
   { category: "Backend", icon: Server, items: ["Django", "Java", "REST API", "JWT", "Node.js"] },
   { category: "Mobile", icon: Smartphone, items: ["Flutter (Dart)", "Android (Java)", "Cross-Platform"] },
@@ -214,7 +86,7 @@ const skills = [
   { category: "DevOps & Tools", icon: Terminal, items: ["Git", "GitHub", "Vercel", "Netlify", "Joomla"] }
 ];
 
-const experience = [
+const experience: ExperienceItem[] = [
   {
     company: "SICS IT OUTSOURCING",
     role: "Full-Stack Developer",
@@ -235,7 +107,7 @@ const experience = [
   }
 ];
 
-const projects = [
+const projects: ProjectItem[] = [
   {
     title: "Johnny Auto System",
     type: "Management System",
@@ -279,10 +151,165 @@ const projects = [
   }
 ];
 
+// --- Custom Hooks ---
+
+const useOnScreen = (options: IntersectionObserverInit): [React.RefObject<HTMLDivElement>, boolean] => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, options);
+    if (ref.current) observer.observe(ref.current);
+    return () => { if (ref.current) observer.unobserve(ref.current); };
+  }, [ref, options]);
+
+  return [ref as React.RefObject<HTMLDivElement>, isVisible];
+};
+
 // --- Components ---
 
-const ScrollReveal = ({ children, className = "" }) => {
+const ThreeBackground: React.FC = () => {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+    
+    // Scene Setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    mount.appendChild(renderer.domElement);
+
+    // Objects
+    const geometry = new THREE.IcosahedronGeometry(2.5, 1);
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x2dd4bf, // Teal-400
+      wireframe: true,
+      transparent: true,
+      opacity: 0.15
+    });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    const coreGeometry = new THREE.OctahedronGeometry(1, 0);
+    const coreMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x60a5fa, // Blue-400
+      wireframe: true,
+      transparent: true,
+      opacity: 0.3
+    });
+    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    scene.add(core);
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particleCount = 700;
+    const posArray = new Float32Array(particleCount * 3);
+
+    for(let i = 0; i < particleCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 15;
+    }
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMaterial = new THREE.PointsMaterial({
+      size: 0.02,
+      color: 0x94a3b8,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+
+    camera.position.z = 5;
+    sphere.position.x = 1.5;
+    core.position.x = 1.5;
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    const handleMouseMove = (event: globalThis.MouseEvent) => {
+      mouseX = (event.clientX / window.innerWidth) - 0.5;
+      mouseY = (event.clientY / window.innerHeight) - 0.5;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    
+    const handleResize = () => {
+        if (!mount) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        if(window.innerWidth < 768) {
+            sphere.position.x = 0;
+            core.position.x = 0;
+            sphere.scale.set(0.7, 0.7, 0.7);
+        } else {
+            sphere.position.x = 1.5;
+            core.position.x = 1.5;
+            sphere.scale.set(1, 1, 1);
+        }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    const clock = new THREE.Clock();
+    let animationId: number;
+
+    const animate = () => {
+      const elapsedTime = clock.getElapsedTime();
+
+      const targetX = mouseX * 0.5;
+      const targetY = mouseY * 0.5;
+
+      sphere.rotation.y += 0.002;
+      sphere.rotation.x += 0.001;
+      sphere.rotation.y += 0.5 * (targetX - sphere.rotation.y) * 0.05;
+      sphere.rotation.x += 0.5 * (targetY - sphere.rotation.x) * 0.05;
+
+      core.rotation.y -= 0.005;
+      core.rotation.x -= 0.005;
+
+      sphere.position.y = Math.sin(elapsedTime * 0.5) * 0.1;
+      core.position.y = Math.sin(elapsedTime * 0.5) * 0.1;
+
+      particlesMesh.rotation.y = -elapsedTime * 0.05;
+      particlesMesh.rotation.x = mouseY * 0.1;
+
+      renderer.render(scene, camera);
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
+      if (mount && mount.contains(renderer.domElement)) {
+        mount.removeChild(renderer.domElement);
+      }
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  return <div ref={mountRef} className="absolute inset-0 z-0 pointer-events-none" />;
+};
+
+const ScrollReveal: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => {
   const [ref, isVisible] = useOnScreen({ threshold: 0.1 });
+  // Typecasting ref to allow it to be passed to div
   return (
     <div 
       ref={ref}
@@ -295,12 +322,12 @@ const ScrollReveal = ({ children, className = "" }) => {
   );
 };
 
-const SpotlightCard = ({ children, className = "" }) => {
-  const divRef = useRef(null);
+const SpotlightCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => {
+  const divRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!divRef.current) return;
     const rect = divRef.current.getBoundingClientRect();
     setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -326,7 +353,13 @@ const SpotlightCard = ({ children, className = "" }) => {
   );
 };
 
-const NavLink = ({ href, children, onClick }) => (
+interface NavLinkProps {
+  href: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ href, children, onClick }) => (
   <a 
     href={href} 
     onClick={(e) => {
@@ -342,7 +375,7 @@ const NavLink = ({ href, children, onClick }) => (
   </a>
 );
 
-const CopyButton = ({ text }) => {
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   const [copied, setCopied] = useState(false);
   
   const handleCopy = () => {
@@ -362,7 +395,7 @@ const CopyButton = ({ text }) => {
   );
 };
 
-const ProjectCard = ({ project }) => {
+const ProjectCard: React.FC<{ project: ProjectItem }> = ({ project }) => {
   const Icon = project.icon;
   return (
     <ScrollReveal>
@@ -401,19 +434,19 @@ const ProjectCard = ({ project }) => {
   );
 };
 
-const App = () => {
+const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     subject: '',
     message: ''
   });
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -421,7 +454,7 @@ const App = () => {
     }));
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     const { name, email, subject, message } = formData;
 
@@ -456,6 +489,7 @@ const App = () => {
           
           {/* Desktop Nav */}
           <div className="hidden md:flex gap-8 items-center">
+            <NavLink href="#skills">Skills</NavLink>
             <NavLink href="#projects">Work</NavLink>
             <NavLink href="#experience">Experience</NavLink>
             <NavLink href="#education">Education</NavLink>
@@ -469,8 +503,9 @@ const App = () => {
         </div>
       </nav>
 
-      {/* Mobile Menu - Moved OUTSIDE the nav to prevent clipping by backdrop-filter */}
+      {/* Mobile Menu - Positioned outside nav for proper full-screen stacking */}
       <div className={`fixed inset-0 bg-[#0B1120] z-40 flex flex-col justify-center items-center gap-8 text-xl transition-transform duration-300 md:hidden ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <a href="#skills" onClick={() => setIsMenuOpen(false)} className="hover:text-teal-400">Skills</a>
         <a href="#projects" onClick={() => setIsMenuOpen(false)} className="hover:text-teal-400">Work</a>
         <a href="#experience" onClick={() => setIsMenuOpen(false)} className="hover:text-teal-400">Experience</a>
         <a href="#education" onClick={() => setIsMenuOpen(false)} className="hover:text-teal-400">Education</a>
@@ -519,12 +554,49 @@ const App = () => {
         </div>
       </section>
 
+      {/* Skills Section */}
+      <section id="skills" className="py-24 relative z-10 bg-[#0B1120]">
+        <div className="max-w-6xl mx-auto px-6">
+           <h2 className="text-4xl font-bold text-white mb-12 flex items-center gap-3">
+             <span className="text-teal-400">01.</span> Technical Skills
+             <div className="h-px bg-slate-800 flex-grow ml-4"></div>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {skills.map((skill, index) => {
+              const Icon = skill.icon;
+              return (
+                <ScrollReveal key={index}>
+                  <SpotlightCard className="p-6 h-full hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="p-3 rounded-xl bg-slate-800/50 text-teal-400 ring-1 ring-white/10">
+                        <Icon size={24} />
+                      </div>
+                      <h3 className="text-xl font-bold text-white">{skill.category}</h3>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      {skill.items.map((item, i) => (
+                         <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-slate-300 hover:border-teal-500/50 hover:text-teal-400 transition-colors cursor-default">
+                           <div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div>
+                           {item}
+                         </div>
+                      ))}
+                    </div>
+                  </SpotlightCard>
+                </ScrollReveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Projects Section */}
-      <section id="projects" className="py-32 relative z-10 bg-[#0B1120]">
+      <section id="projects" className="py-32 relative z-10 bg-[#0F1629]/30">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-16">
              <h2 className="text-4xl font-bold text-white mb-4 flex items-center gap-3">
-              <span className="text-teal-400">01.</span> Featured Projects
+              <span className="text-teal-400">02.</span> Featured Projects
             </h2>
             <p className="text-slate-400 max-w-xl">A collection of applications I've designed and developed, ranging from enterprise ERPs to mobile utilities.</p>
           </div>
@@ -541,7 +613,7 @@ const App = () => {
       <section id="experience" className="py-32 bg-[#0F1629]/50 relative z-10">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-4xl font-bold text-white mb-16 flex items-center gap-3">
-             <span className="text-teal-400">02.</span> Experience
+             <span className="text-teal-400">03.</span> Experience
           </h2>
           
           <div className="relative space-y-12 border-l-2 border-slate-800 ml-3 md:ml-6 pl-8 md:pl-10 pb-4">
@@ -571,7 +643,7 @@ const App = () => {
       <section id="education" className="py-24 relative z-10 bg-[#0B1120]">
         <div className="max-w-4xl mx-auto px-6">
            <h2 className="text-4xl font-bold text-white mb-12 flex items-center gap-3">
-             <span className="text-teal-400">03.</span> Education
+             <span className="text-teal-400">04.</span> Education
           </h2>
 
           <ScrollReveal>
@@ -604,7 +676,7 @@ const App = () => {
       <section id="contact" className="py-32 relative z-10 bg-[#0F1629]/30">
         <div className="max-w-6xl mx-auto px-6">
            <h2 className="text-4xl font-bold text-white mb-12 flex items-center gap-3">
-             <span className="text-teal-400">04.</span> Get In Touch
+             <span className="text-teal-400">05.</span> Get In Touch
           </h2>
 
           <div className="grid lg:grid-cols-2 gap-16">
@@ -697,7 +769,7 @@ const App = () => {
                   <label className="text-sm text-slate-400 font-medium">Message</label>
                   <textarea 
                     name="message"
-                    rows="4" 
+                    rows={4} 
                     value={formData.message}
                     onChange={handleInputChange}
                     className="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-slate-200 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all" 
